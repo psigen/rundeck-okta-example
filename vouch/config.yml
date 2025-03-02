@@ -1,0 +1,62 @@
+# Vouch Proxy configuration
+# See: https://github.com/vouch/vouch-proxy/blob/master/config/config.yml_example_oidc
+
+vouch:
+  logLevel: debug
+
+  # Indicate the path at which Vouch Proxy is being hosted.
+  # See: https://github.com/vouch/vouch-proxy?tab=readme-ov-file#vouch-proxy-in-a-path
+  document_root: /vouch
+
+  ## Valid domains that the jwt cookies can be set into.
+  ## The callback_urls will be to these domains.
+  # domains:
+  # - yourdomain.com
+  # - yourotherdomain.com
+
+  # - OR -
+
+  # Instead of setting specific domains you may prefer to allow all users...
+  # set allowAllUsers: true to use Vouch Proxy to just accept anyone who can authenticate at the configured provider
+  # and set vouch.cookie.domain to the domain you wish to protect
+  allowAllUsers: true
+
+  cookie:
+    # Allow the jwt/cookie to be set into http://yourdomain.com (defaults to true, requiring https://yourdomain.com)
+    secure: false
+    # vouch.cookie.domain must be set when enabling allowAllUsers
+    domain: localhost
+
+  headers:
+    # This token is needed to pass an 'id_token_hint' to the logout server.
+    # See: https://github.com/vouch/vouch-proxy/issues/522#issuecomment-1620717457
+    idtoken: X-Vouch-IdP-IdToken
+    # These claims are extracted as headers for the downstream server.
+    claims:
+      - email
+      - family_name
+      - given_name
+      - roles
+
+  # Whitelist of acceptable redirect URLs for logout.
+  # If the redirect URL is not in this list, the request will be denied.
+  post_logout_redirect_uris:
+    - http://localhost:8080/user/login
+
+oauth:
+  provider: oidc
+  scopes:
+    - openid
+    - email
+    - profile
+
+  ## OIDC requires these settings: we inject them via environment variables.
+  # client_id: <okta_client_id>
+  # client_secret: <okta_client_secret>
+  # auth_url: https://<okta_org>.okta.com/oauth2/v1/authorize
+  # token_url: https://<okta_org>.okta.com/oauth2/v1/token
+  # user_info_url: https://<okta_org>.okta.com/oauth2/v1/userinfo
+  # end_session_endpoint: https://<okta_org>.okta.com/oauth2/v1/logout
+
+  # Set the callback URL to the domain that Vouch is running on
+  callback_url: http://localhost:8080/vouch/auth

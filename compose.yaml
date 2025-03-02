@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:17.4
+    environment:
+      - POSTGRES_DB=rundeck
+      - POSTGRES_USER=rundeck
+      - POSTGRES_PASSWORD=rundeck
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  rundeck:
+    image: rundeck/rundeck:5.9.0
+    volumes:
+      - type: bind
+        source: ./rundeck/remco/resources.d/rundeck-config-sso.properties.toml
+        target: /etc/remco/resources.d/rundeck-config-sso.properties.toml
+        read_only: true
+      - type: bind
+        source: ./rundeck/remco/templates/rundeck-config-sso.properties
+        target: /etc/remco/templates/rundeck-config-sso.properties
+        read_only: true
+    environment:
+      RUNDECK_GRAILS_URL: http://localhost:8080
+      RUNDECK_SERVER_FORWARDED: "true"
+      RUNDECK_PREAUTH_REDIRECT_LOGOUT: "true"
+      RUNDECK_PREAUTH_REDIRECT_URL: /vouch/logout?url=http%3A%2F%2Flocalhost%3A8080%2Fuser%2Flogin
+      RUNDECK_DATABASE_DRIVER: org.postgresql.Driver
+      RUNDECK_DATABASE_USERNAME: rundeck
+      RUNDECK_DATABASE_PASSWORD: rundeck
+      RUNDECK_DATABASE_URL: jdbc:postgresql://postgres/rundeck?autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+    depends_on:
+      - postgres
+
+  vouch:
+    image: quay.io/vouch/vouch-proxy:0.41.0
+    volumes:
+      - type: bind
+        source: ./vouch/config.yml
+        target: /config/config.yml
+        read_only: true
+    environment:
+      VOUCH_CONFIG: /config/config.yml
+      OAUTH_CLIENT_ID: ${OKTA_CLIENT_ID}
+      OAUTH_CLIENT_SECRET: ${OKTA_CLIENT_SECRET}
+      OAUTH_AUTH_URL: https://${OKTA_DOMAIN}/oauth2/v1/authorize
+      OAUTH_TOKEN_URL: https://${OKTA_DOMAIN}/oauth2/v1/token
+      OAUTH_USER_INFO_URL: https://${OKTA_DOMAIN}/oauth2/v1/userinfo
+      OAUTH_END_SESSION_ENDPOINT: https://${OKTA_DOMAIN}/oauth2/v1/logout
+
+  nginx:
+    image: nginx:1.27.4
+    ports:
+      - 8080:80
+    volumes:
+      - type: bind
+        source: ./nginx/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+    depends_on:
+      - vouch
+      - rundeck
+
+volumes:
+  dbdata:
